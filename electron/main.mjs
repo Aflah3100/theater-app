@@ -95,7 +95,13 @@ ipcMain.handle('media:select-video', async () => {
   return {
     path: filePath,
     name: fileName,
+    source: `file://${encodeURI(filePath.replace(/\\/g, '/') )}`,
   };
+});
+
+ipcMain.handle('app:close', async () => {
+  app.quit();
+  return { ok: true };
 });
 
 ipcMain.handle('media:play-in-vlc', async (_event, payload) => {
