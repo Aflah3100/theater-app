@@ -61,13 +61,11 @@ const Index = () => {
     }
 
     setPlaybackStage(stage);
-    setLightMode("off");
 
     const result = await window.desktop.playInVlc({ path: media.path });
 
     if (!result.ok) {
       setPlaybackStage("idle");
-      setLightMode("on");
       toast.error(result.error);
       return false;
     }
@@ -80,7 +78,6 @@ const Index = () => {
     if (!ok) return;
 
     setPlaybackStage("idle");
-    setLightMode("dim");
     toast.success("Advertisement playback finished in VLC.");
   };
 
@@ -89,7 +86,6 @@ const Index = () => {
     if (!ok) return;
 
     setPlaybackStage("intermission");
-    setLightMode("on");
     toast.success("First half complete. Intermission is ready.");
   };
 
@@ -103,7 +99,6 @@ const Index = () => {
     if (!ok) return;
 
     setPlaybackStage("finished");
-    setLightMode("on");
     toast.success("Second half complete.");
   };
 
@@ -117,10 +112,6 @@ const Index = () => {
     if (!playbackBusy) {
       if (label === "first half" || label === "second half") {
         setPlaybackStage("idle");
-      }
-
-      if (label === "advertisement" && playbackStage === "idle") {
-        setLightMode("on");
       }
     }
 
