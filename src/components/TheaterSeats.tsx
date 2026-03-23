@@ -50,16 +50,18 @@ const TheaterSeats = ({
 }) => {
   return (
     <div className="mt-6 space-y-4">
-      <div
-        className={cn(
-          "mx-auto h-2 w-full max-w-xl rounded-full transition-all duration-500",
-          lightMode === "on"
-            ? "bg-gradient-to-r from-transparent via-yellow-300/80 to-transparent shadow-[0_0_30px_rgba(253,224,71,0.6)]"
-            : lightMode === "dim"
-              ? "bg-gradient-to-r from-transparent via-yellow-200/35 to-transparent shadow-[0_0_18px_rgba(253,224,71,0.25)]"
-              : "bg-transparent shadow-none"
-        )}
-      />
+      <div className="flex justify-center">
+        <div
+          className={cn(
+            "h-5 w-5 rounded-full border transition-all duration-500",
+            lightMode === "on"
+              ? "border-yellow-200/90 bg-yellow-300 shadow-[0_0_28px_rgba(253,224,71,0.8)]"
+              : lightMode === "dim"
+                ? "border-yellow-100/50 bg-yellow-200/60 shadow-[0_0_16px_rgba(253,224,71,0.35)]"
+                : "border-border/40 bg-transparent shadow-none"
+          )}
+        />
+      </div>
       <div className="flex items-end justify-center gap-3 sm:gap-5">
         <ExitLight active={exitLightsOn} />
         <div className="space-y-1.5 sm:space-y-2">

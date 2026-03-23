@@ -263,7 +263,7 @@ const Index = () => {
               <MonitorSpeaker className="w-5 h-5 text-gold mt-0.5" />
             </div>
 
-            <div className="aspect-video overflow-hidden rounded-2xl border border-border/60 bg-black/80 flex items-center justify-center">
+            <div className="min-h-[220px] overflow-hidden rounded-2xl border border-border/60 bg-black/80 flex items-center justify-center">
               {playbackStage === "intermission" ? (
                 <div className="px-6 text-center space-y-4">
                   <h3 className="text-3xl font-semibold text-gold">Movie Intermission</h3>
@@ -289,10 +289,14 @@ const Index = () => {
               )}
             </div>
 
-            <div className="rounded-2xl border border-border/50 bg-background/50 p-4">
-              <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
                 <h2 className="text-lg font-semibold text-foreground">Theater Seat View</h2>
               </div>
+              <MonitorSpeaker className="w-5 h-5 text-gold mt-0.5" />
+            </div>
+
+            <div className="rounded-2xl border border-border/50 bg-background/50 p-4">
               <TheaterSeats exitLightsOn={exitLightsOn} lightMode={lightMode} />
             </div>
 
