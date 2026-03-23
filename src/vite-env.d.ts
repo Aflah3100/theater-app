@@ -15,5 +15,6 @@ interface Window {
     isElectron: boolean;
     selectVideo: () => Promise<DesktopMediaSelection | null>;
     playInVlc: (payload: { path: string }) => Promise<DesktopVlcResponse>;
+    closeApp: () => Promise<{ ok: boolean }>;
   };
 }

@@ -4,4 +4,5 @@ contextBridge.exposeInMainWorld('desktop', {
   isElectron: true,
   selectVideo: () => ipcRenderer.invoke('media:select-video'),
   playInVlc: (payload) => ipcRenderer.invoke('media:play-in-vlc', payload),
+  closeApp: () => ipcRenderer.invoke('app:close'),
 });

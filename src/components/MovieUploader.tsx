@@ -1,11 +1,14 @@
 import { useRef } from "react";
-import { Film, Check, Megaphone, FolderOpen } from "lucide-react";
+import { Check, CircleX, Film, FolderOpen, Megaphone } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SelectedMedia } from "@/types/media";
 
 interface MovieUploaderProps {
   file: SelectedMedia | null;
   onFileSelect: (file: SelectedMedia) => void;
+  onClear?: () => void;
+  disabled?: boolean;
   title?: string;
   description?: string;
   emptyIcon?: "film" | "megaphone";
@@ -14,6 +17,8 @@ interface MovieUploaderProps {
 const MovieUploader = ({
   file,
   onFileSelect,
+  onClear,
+  disabled = false,
   title = "Load Film Reel",
   description = "Choose a movie file from your desktop library.",
   emptyIcon = "film",
@@ -29,9 +34,13 @@ const MovieUploader = ({
       path: (selected as File & { path?: string }).path,
       sizeLabel: `${(selected.size / (1024 * 1024)).toFixed(1)} MB`,
     });
+
+    e.target.value = "";
   };
 
   const handlePick = async () => {
+    if (disabled) return;
+
     if (window.desktop?.isElectron) {
       const selected = await window.desktop.selectVideo();
       if (!selected) return;
@@ -42,6 +51,11 @@ const MovieUploader = ({
     inputRef.current?.click();
   };
 
+  const handleClear = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    onClear?.();
+  };
+
   const EmptyIcon = emptyIcon === "megaphone" ? Megaphone : Film;
 
   return (
@@ -49,10 +63,24 @@ const MovieUploader = ({
       className={cn(
         "relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-300",
         file ? "border-gold/50 bg-gold/5" : "border-border hover:border-gold/30 hover:bg-secondary/50",
+        disabled && "cursor-not-allowed opacity-60 hover:border-border hover:bg-transparent",
       )}
       onClick={handlePick}
     >
-      <input ref={inputRef} type="file" accept="video/*,.mkv" className="hidden" onChange={handleFileInput} />
+      <input ref={inputRef} type="file" accept="video/*,.mkv" className="hidden" onChange={handleFileInput} disabled={disabled} />
+      {file && onClear ? (
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="absolute right-4 top-4 h-9 w-9 rounded-full border-gold/40 bg-background/80 text-gold hover:bg-gold/10"
+          onClick={handleClear}
+          aria-label={`Eject ${title}`}
+          disabled={disabled}
+        >
+          <CircleX className="h-4 w-4" />
+        </Button>
+      ) : null}
       <div className="flex flex-col items-center gap-3">
         {file ? (
           <>
