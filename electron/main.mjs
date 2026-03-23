@@ -10,6 +10,11 @@ const __dirname = path.dirname(__filename);
 const isDev = !app.isPackaged;
 const rendererUrl = process.env.ELECTRON_START_URL ?? 'http://127.0.0.1:8080';
 
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-setuid-sandbox');
+}
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1440,

@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on tcp:8080 && electron .\"",
+    "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on tcp:8080 && electron --no-sandbox .\"",
     "desktop:build": "npm run build && electron-builder"
   },
   "dependencies": {
