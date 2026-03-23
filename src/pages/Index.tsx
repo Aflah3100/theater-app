@@ -289,16 +289,11 @@ const Index = () => {
               )}
             </div>
 
-            <div className="rounded-xl bg-background/60 border border-border/50 px-4 py-3 text-sm text-muted-foreground">
-              {playbackStage === "intermission"
-                ? "Intermission is active. House lights should be on before the second half resumes in VLC."
-                : playbackStage === "finished"
-                  ? "Second half complete. All controls are locked until the application is closed."
-                  : "Use the screen, seating preview, and lighting controls here."}
-            </div>
-
             <div className="rounded-2xl border border-border/50 bg-background/50 p-4">
-              <TheaterSeats exitLightsOn={exitLightsOn} />
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Theater Seat View</h2>
+              </div>
+              <TheaterSeats exitLightsOn={exitLightsOn} lightMode={lightMode} />
             </div>
 
             <div className="rounded-2xl border border-border/50 bg-background/50 p-4">

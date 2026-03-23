@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import type { LightMode } from "@/components/LightingControls";
 
 const SeatRow = ({ count, scale, opacity }: { count: number; scale: number; opacity: number }) => (
   <div
@@ -17,7 +18,7 @@ const SeatRow = ({ count, scale, opacity }: { count: number; scale: number; opac
   </div>
 );
 
-const ExitLight = ({ active, side }: { active: boolean; side: "left" | "right" }) => (
+const ExitLight = ({ active }: { active: boolean }) => (
   <div className="flex flex-col items-center gap-2">
     <div
       className={cn(
@@ -35,22 +36,40 @@ const ExitLight = ({ active, side }: { active: boolean; side: "left" | "right" }
           : "border-border/60 bg-background/70 text-muted-foreground"
       )}
     >
-      Exit {side}
+      Exit
     </div>
   </div>
 );
 
-const TheaterSeats = ({ exitLightsOn = false }: { exitLightsOn?: boolean }) => {
+const TheaterSeats = ({
+  exitLightsOn = false,
+  lightMode = "on",
+}: {
+  exitLightsOn?: boolean;
+  lightMode?: LightMode;
+}) => {
   return (
-    <div className="mt-6 flex items-end justify-center gap-3 sm:gap-5">
-      <ExitLight active={exitLightsOn} side="left" />
-      <div className="space-y-1.5 sm:space-y-2">
-        <SeatRow count={9} scale={0.85} opacity={0.7} />
-        <SeatRow count={11} scale={0.9} opacity={0.6} />
-        <SeatRow count={13} scale={0.95} opacity={0.5} />
-        <SeatRow count={15} scale={1} opacity={0.4} />
+    <div className="mt-6 space-y-4">
+      <div
+        className={cn(
+          "mx-auto h-2 w-full max-w-xl rounded-full transition-all duration-500",
+          lightMode === "on"
+            ? "bg-gradient-to-r from-transparent via-yellow-300/80 to-transparent shadow-[0_0_30px_rgba(253,224,71,0.6)]"
+            : lightMode === "dim"
+              ? "bg-gradient-to-r from-transparent via-yellow-200/35 to-transparent shadow-[0_0_18px_rgba(253,224,71,0.25)]"
+              : "bg-transparent shadow-none"
+        )}
+      />
+      <div className="flex items-end justify-center gap-3 sm:gap-5">
+        <ExitLight active={exitLightsOn} />
+        <div className="space-y-1.5 sm:space-y-2">
+          <SeatRow count={9} scale={0.85} opacity={0.7} />
+          <SeatRow count={11} scale={0.9} opacity={0.6} />
+          <SeatRow count={13} scale={0.95} opacity={0.5} />
+          <SeatRow count={15} scale={1} opacity={0.4} />
+        </div>
+        <ExitLight active={exitLightsOn} />
       </div>
-      <ExitLight active={exitLightsOn} side="right" />
     </div>
   );
 };
