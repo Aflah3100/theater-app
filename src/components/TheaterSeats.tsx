@@ -50,7 +50,7 @@ const TheaterSeats = ({
 }) => {
   return (
     <div className="mt-6 space-y-4">
-      <div className="flex justify-center gap-4">
+      <div className="mx-auto flex w-full max-w-xl items-center justify-between px-6 sm:px-10">
         {[0, 1, 2].map((light) => (
           <div
             key={light}
