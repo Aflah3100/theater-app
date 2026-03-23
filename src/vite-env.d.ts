@@ -3,7 +3,6 @@
 interface DesktopMediaSelection {
   name: string;
   path?: string;
-  source?: string;
 }
 
 interface DesktopVlcResponse {

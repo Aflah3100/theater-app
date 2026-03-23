@@ -95,7 +95,6 @@ ipcMain.handle('media:select-video', async () => {
   return {
     path: filePath,
     name: fileName,
-    source: `file://${encodeURI(filePath.replace(/\\/g, '/') )}`,
   };
 });
 
@@ -118,14 +117,32 @@ ipcMain.handle('media:play-in-vlc', async (_event, payload) => {
   }
 
   try {
-    const args = ['--fullscreen', payload.path];
-    const child = spawn(vlcCommand, args, {
-      detached: true,
-      stdio: 'ignore',
-    });
-    child.unref();
+    const args = ['--fullscreen', '--play-and-exit', payload.path];
 
-    return { ok: true };
+    return await new Promise((resolve) => {
+      const child = spawn(vlcCommand, args, {
+        stdio: 'ignore',
+      });
+
+      child.once('error', (error) => {
+        resolve({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Failed to launch VLC.',
+        });
+      });
+
+      child.once('close', (code) => {
+        if (code === 0 || code === null) {
+          resolve({ ok: true });
+          return;
+        }
+
+        resolve({
+          ok: false,
+          error: `VLC exited with code ${code}.`,
+        });
+      });
+    });
   } catch (error) {
     return {
       ok: false,

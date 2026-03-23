@@ -31,7 +31,6 @@ const MovieUploader = ({
       name: selected.name,
       path: (selected as File & { path?: string }).path,
       sizeLabel: `${(selected.size / (1024 * 1024)).toFixed(1)} MB`,
-      source: URL.createObjectURL(selected),
     });
 
     e.target.value = "";
@@ -85,7 +84,7 @@ const MovieUploader = ({
             <div>
               <p className="text-sm font-medium text-foreground">{file.name}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {file.sizeLabel ?? "Ready for playback"} — Click to change
+                {file.sizeLabel ?? "Ready to open in VLC"} — Click to change
               </p>
             </div>
           </>

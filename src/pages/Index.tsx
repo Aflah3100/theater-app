@@ -1,21 +1,14 @@
-import { type Dispatch, type SetStateAction, useEffect, useMemo, useRef, useState } from "react";
-import { Clapperboard, Megaphone, Play, MonitorSpeaker, Video, Languages, Captions, Film, Power } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
+import { Captions, Clapperboard, Film, Languages, Megaphone, MonitorSpeaker, Play, Power, Video } from "lucide-react";
 import MovieUploader from "@/components/MovieUploader";
 import LightingControls, { type LightMode } from "@/components/LightingControls";
 import TheaterSeats from "@/components/TheaterSeats";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import type { SelectedMedia } from "@/types/media";
 
-type PlaybackStage = "idle" | "ad" | "firstHalf" | "intermission" | "secondHalf" | "finished";
-
-const getMediaSource = (media: SelectedMedia | null) => {
-  if (!media) return "";
-  if (media.source) return media.source;
-  if (media.path) return `file://${encodeURI(media.path.replace(/\\/g, "/"))}`;
-  return "";
-};
+type PlaybackStage = "idle" | "launchingAd" | "launchingFirstHalf" | "intermission" | "launchingSecondHalf" | "finished";
 
 const Index = () => {
   const [firstHalf, setFirstHalf] = useState<SelectedMedia | null>(null);
@@ -23,9 +16,6 @@ const Index = () => {
   const [ad, setAd] = useState<SelectedMedia | null>(null);
   const [lightMode, setLightMode] = useState<LightMode>("on");
   const [playbackStage, setPlaybackStage] = useState<PlaybackStage>("idle");
-  const [currentSource, setCurrentSource] = useState("");
-  const [currentTitle, setCurrentTitle] = useState("Screen is ready");
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const ambientClass =
     lightMode === "on"
@@ -35,50 +25,86 @@ const Index = () => {
         : "theater-ambient-off";
 
   const desktopReady = Boolean(window.desktop?.isElectron);
+  const playbackBusy = playbackStage === "launchingAd" || playbackStage === "launchingFirstHalf" || playbackStage === "launchingSecondHalf";
   const secondHalfEnabled = playbackStage === "intermission";
 
   const featureHighlights = useMemo(
     () => [
       {
         icon: Languages,
-        title: "Split feature playback",
-        description: "Load two movie files so the second half stays locked until intermission begins.",
+        title: "VLC remains the player",
+        description: "Movie halves and advertisements still launch in VLC so the desktop workflow stays unchanged.",
       },
       {
         icon: Captions,
-        title: "Intermission workflow",
-        description: "When the first half ends, the screen prompts staff to turn on lights before resuming.",
+        title: "Intermission control",
+        description: "Once the first half finishes in VLC, the UI unlocks the second half and prompts staff to turn on the lights.",
       },
       {
         icon: Video,
-        title: "One-click finish",
-        description: "After the second half ends, the app offers a close-screen action for a clean shutdown.",
+        title: "End-of-show close",
+        description: "After VLC finishes the second half, the screen switches to a close-app prompt for the operator.",
       },
     ],
     [],
   );
 
-  useEffect(() => {
-    return () => {
-      [firstHalf, secondHalf, ad].forEach((media) => {
-        if (media?.source?.startsWith("blob:")) {
-          URL.revokeObjectURL(media.source);
-        }
-      });
-    };
-    // We revoke current blob URLs only when the page unmounts.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const replaceMedia = (
-    nextMedia: SelectedMedia | null,
-    setter: Dispatch<SetStateAction<SelectedMedia | null>>,
-    previous: SelectedMedia | null,
-  ) => {
-    if (previous?.source?.startsWith("blob:")) {
-      URL.revokeObjectURL(previous.source);
+  const playInVlc = async (media: SelectedMedia | null, stage: PlaybackStage, title: string) => {
+    if (!media?.path) {
+      toast.error(`Upload the ${title.toLowerCase()} first.`);
+      return false;
     }
-    setter(nextMedia);
+
+    if (!desktopReady || !window.desktop?.playInVlc) {
+      toast.error("This workflow requires the Electron desktop app so playback can stay in VLC.");
+      return false;
+    }
+
+    setPlaybackStage(stage);
+    setLightMode("off");
+
+    const result = await window.desktop.playInVlc({ path: media.path });
+
+    if (!result.ok) {
+      setPlaybackStage("idle");
+      setLightMode("on");
+      toast.error(result.error);
+      return false;
+    }
+
+    return true;
+  };
+
+  const handlePlayAd = async () => {
+    const ok = await playInVlc(ad, "launchingAd", "advertisement");
+    if (!ok) return;
+
+    setPlaybackStage("idle");
+    setLightMode("dim");
+    toast.success("Advertisement playback finished in VLC.");
+  };
+
+  const handlePlayFirstHalf = async () => {
+    const ok = await playInVlc(firstHalf, "launchingFirstHalf", "first half");
+    if (!ok) return;
+
+    setPlaybackStage("intermission");
+    setLightMode("on");
+    toast.success("First half complete. Intermission is ready.");
+  };
+
+  const handlePlaySecondHalf = async () => {
+    if (!secondHalfEnabled) {
+      toast.error("Second half stays locked until the first half finishes.");
+      return;
+    }
+
+    const ok = await playInVlc(secondHalf, "launchingSecondHalf", "second half");
+    if (!ok) return;
+
+    setPlaybackStage("finished");
+    setLightMode("on");
+    toast.success("Second half complete.");
   };
 
   const clearMedia = (
@@ -86,76 +112,19 @@ const Index = () => {
     setter: Dispatch<SetStateAction<SelectedMedia | null>>,
     label: string,
   ) => {
-    if (media?.source?.startsWith("blob:")) {
-      URL.revokeObjectURL(media.source);
-    }
-
-    if (
-      (playbackStage === "ad" && label === "advertisement") ||
-      ((playbackStage === "firstHalf" || playbackStage === "secondHalf") && currentSource === getMediaSource(media))
-    ) {
-      setPlaybackStage("idle");
-      setCurrentSource("");
-      setCurrentTitle("Screen is ready");
-      videoRef.current?.pause();
-    }
-
     setter(null);
+
+    if (!playbackBusy) {
+      if (label === "first half" || label === "second half") {
+        setPlaybackStage("idle");
+      }
+
+      if (label === "advertisement" && playbackStage === "idle") {
+        setLightMode("on");
+      }
+    }
+
     toast.success(`${label} removed.`);
-  };
-
-  const beginPlayback = (media: SelectedMedia | null, stage: PlaybackStage, title: string) => {
-    const source = getMediaSource(media);
-    if (!source) {
-      toast.error(`Upload the ${title.toLowerCase()} first.`);
-      return;
-    }
-
-    setCurrentSource(source);
-    setCurrentTitle(title);
-    setPlaybackStage(stage);
-    setLightMode("off");
-    requestAnimationFrame(() => {
-      void videoRef.current?.play().catch(() => {
-        toast.error("Playback could not start automatically. Please press play on the screen.");
-      });
-    });
-  };
-
-  const handlePlayAd = () => beginPlayback(ad, "ad", "Advertisement");
-  const handlePlayFirstHalf = () => beginPlayback(firstHalf, "firstHalf", "Movie – First Half");
-  const handlePlaySecondHalf = () => {
-    if (!secondHalfEnabled) {
-      toast.error("Second half stays locked until the first half finishes.");
-      return;
-    }
-
-    beginPlayback(secondHalf, "secondHalf", "Movie – Second Half");
-  };
-
-  const handleVideoEnded = () => {
-    if (playbackStage === "ad") {
-      setPlaybackStage("idle");
-      setCurrentSource("");
-      setCurrentTitle("Screen is ready");
-      setLightMode("dim");
-      return;
-    }
-
-    if (playbackStage === "firstHalf") {
-      setPlaybackStage("intermission");
-      setCurrentSource("");
-      setCurrentTitle("Intermission");
-      setLightMode("on");
-      return;
-    }
-
-    if (playbackStage === "secondHalf") {
-      setPlaybackStage("finished");
-      setCurrentSource("");
-      setCurrentTitle("Show complete");
-      setLightMode("on");
-    }
   };
 
   const closeScreen = async () => {
@@ -166,6 +135,34 @@ const Index = () => {
 
     window.close();
   };
+
+  const statusTitle =
+    playbackStage === "launchingAd"
+      ? "Playing advertisement in VLC"
+      : playbackStage === "launchingFirstHalf"
+        ? "Playing first half in VLC"
+        : playbackStage === "launchingSecondHalf"
+          ? "Playing second half in VLC"
+          : playbackStage === "intermission"
+            ? "Movie Intermission"
+            : playbackStage === "finished"
+              ? "Close the screen"
+              : "Screen is ready";
+
+  const statusDescription =
+    playbackStage === "launchingAd"
+      ? "VLC is handling advertisement playback. Return here when the clip finishes."
+      : playbackStage === "launchingFirstHalf"
+        ? "The first half is now playing in VLC. When it ends, intermission will appear here."
+        : playbackStage === "launchingSecondHalf"
+          ? "The second half is now playing in VLC. The app will offer a close action when VLC finishes."
+          : playbackStage === "intermission"
+            ? "Please turn on lights. The second-half playback button is now enabled."
+            : playbackStage === "finished"
+              ? "The movie has ended. Close the application for the next show."
+              : desktopReady
+                ? "Upload media and launch playback in VLC."
+                : "Run this project through Electron to keep playback in VLC.";
 
   return (
     <div className={cn("min-h-screen transition-colors duration-1000 flex flex-col", ambientClass)}>
@@ -186,7 +183,7 @@ const Index = () => {
           <Clapperboard className="w-6 h-6 text-gold" />
           <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground tracking-tight">Cinema Hall</h1>
         </div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Electron theater playback desk</p>
+        <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Electron + VLC screening desk</p>
       </header>
 
       <main className="flex-1 flex flex-col items-center px-4 pb-8 relative z-10 max-w-6xl mx-auto w-full gap-8">
@@ -197,21 +194,33 @@ const Index = () => {
                 <Film className="w-5 h-5 text-gold mt-0.5" />
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Movie upload</h2>
-                  <p className="text-sm text-muted-foreground">Upload both halves of the feature. The second half unlocks only after intermission.</p>
+                  <p className="text-sm text-muted-foreground">Upload the first and second half separately. The second half stays locked until intermission.</p>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <MovieUploader file={firstHalf} onFileSelect={(media) => replaceMedia(media, setFirstHalf, firstHalf)} onClear={() => clearMedia(firstHalf, setFirstHalf, "first half")} title="Upload first half" description="Select the opening part of the feature film." />
-                <MovieUploader file={secondHalf} onFileSelect={(media) => replaceMedia(media, setSecondHalf, secondHalf)} onClear={() => clearMedia(secondHalf, setSecondHalf, "second half")} title="Upload second half" description="Select the second part to be played after intermission." />
+                <MovieUploader
+                  file={firstHalf}
+                  onFileSelect={setFirstHalf}
+                  onClear={() => clearMedia(firstHalf, setFirstHalf, "first half")}
+                  title="Upload first half"
+                  description="Select the opening part of the feature film."
+                />
+                <MovieUploader
+                  file={secondHalf}
+                  onFileSelect={setSecondHalf}
+                  onClear={() => clearMedia(secondHalf, setSecondHalf, "second half")}
+                  title="Upload second half"
+                  description="Select the second part to be played after intermission."
+                />
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="gold" size="lg" className="gap-2" disabled={!firstHalf || playbackStage === "firstHalf" || playbackStage === "secondHalf"} onClick={handlePlayFirstHalf}>
+                <Button variant="gold" size="lg" className="gap-2" disabled={!firstHalf || playbackBusy} onClick={handlePlayFirstHalf}>
                   <Play className="w-5 h-5" />
-                  {playbackStage === "firstHalf" ? "Playing first half..." : "Play First Half"}
+                  {playbackStage === "launchingFirstHalf" ? "Opening VLC..." : "Play First Half in VLC"}
                 </Button>
-                <Button variant="theater" size="lg" className="gap-2" disabled={!secondHalf || !secondHalfEnabled || playbackStage === "secondHalf"} onClick={handlePlaySecondHalf}>
+                <Button variant="theater" size="lg" className="gap-2" disabled={!secondHalf || !secondHalfEnabled || playbackBusy} onClick={handlePlaySecondHalf}>
                   <Play className="w-5 h-5" />
-                  {playbackStage === "secondHalf" ? "Playing second half..." : "Play Second Half"}
+                  {playbackStage === "launchingSecondHalf" ? "Opening VLC..." : "Play Second Half in VLC"}
                 </Button>
               </div>
             </div>
@@ -221,13 +230,20 @@ const Index = () => {
                 <Megaphone className="w-5 h-5 text-gold mt-0.5" />
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Advertisement upload</h2>
-                  <p className="text-sm text-muted-foreground">Upload a pre-show advertisement separately so it can be played before the feature starts.</p>
+                  <p className="text-sm text-muted-foreground">Upload a pre-show clip separately and launch it in VLC whenever the auditorium is ready.</p>
                 </div>
               </div>
-              <MovieUploader file={ad} onFileSelect={(media) => replaceMedia(media, setAd, ad)} onClear={() => clearMedia(ad, setAd, "advertisement")} title="Upload advertisement" description="Choose the ad reel or sponsor clip." emptyIcon="megaphone" />
-              <Button variant="theater" size="lg" className="gap-2" disabled={!ad || playbackStage === "firstHalf" || playbackStage === "secondHalf"} onClick={handlePlayAd}>
+              <MovieUploader
+                file={ad}
+                onFileSelect={setAd}
+                onClear={() => clearMedia(ad, setAd, "advertisement")}
+                title="Upload advertisement"
+                description="Choose the ad reel or sponsor clip."
+                emptyIcon="megaphone"
+              />
+              <Button variant="theater" size="lg" className="gap-2" disabled={!ad || playbackBusy} onClick={handlePlayAd}>
                 <Megaphone className="w-5 h-5" />
-                {playbackStage === "ad" ? "Playing advertisement..." : "Play Advertisement"}
+                {playbackStage === "launchingAd" ? "Opening VLC..." : "Play Advertisement in VLC"}
               </Button>
             </div>
           </div>
@@ -236,19 +252,17 @@ const Index = () => {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Theater screen</h2>
-                <p className="text-sm text-muted-foreground">{desktopReady ? "Electron playback is active." : "Browser preview mode is active."}</p>
+                <p className="text-sm text-muted-foreground">{desktopReady ? "Electron bridge is active and VLC remains the playback engine." : "Electron bridge is not active."}</p>
               </div>
               <MonitorSpeaker className="w-5 h-5 text-gold mt-0.5" />
             </div>
 
             <div className="aspect-video overflow-hidden rounded-2xl border border-border/60 bg-black/80 flex items-center justify-center">
-              {currentSource ? (
-                <video ref={videoRef} key={currentSource} src={currentSource} controls autoPlay className="h-full w-full bg-black" onEnded={handleVideoEnded} />
-              ) : playbackStage === "intermission" ? (
+              {playbackStage === "intermission" ? (
                 <div className="px-6 text-center space-y-4">
                   <h3 className="text-3xl font-semibold text-gold">Movie Intermission</h3>
                   <p className="text-lg text-foreground">Please turn on lights.</p>
-                  <Button variant="gold" size="lg" onClick={handlePlaySecondHalf} disabled={!secondHalfEnabled || !secondHalf}>
+                  <Button variant="gold" size="lg" onClick={handlePlaySecondHalf} disabled={!secondHalfEnabled || !secondHalf || playbackBusy}>
                     Play Second Half
                   </Button>
                 </div>
@@ -262,19 +276,19 @@ const Index = () => {
                   </Button>
                 </div>
               ) : (
-                <div className="px-6 text-center space-y-3">
-                  <h3 className="text-2xl font-semibold text-gold">{currentTitle}</h3>
-                  <p className="text-sm text-muted-foreground">Upload a movie half or advertisement, then start playback from the appropriate section.</p>
+                <div className="px-6 text-center space-y-3 max-w-md">
+                  <h3 className="text-2xl font-semibold text-gold">{statusTitle}</h3>
+                  <p className="text-sm text-muted-foreground">{statusDescription}</p>
                 </div>
               )}
             </div>
 
             <div className="rounded-xl bg-background/60 border border-border/50 px-4 py-3 text-sm text-muted-foreground">
               {playbackStage === "intermission"
-                ? "Intermission is active. House lights should be on before the second half resumes."
+                ? "Intermission is active. House lights should be on before the second half resumes in VLC."
                 : playbackStage === "finished"
                   ? "Second half complete. Use the close action above to shut the screen down."
-                  : "Use the controls on the left to manage movie halves, advertisements, and removable uploads."}
+                  : "Use the controls on the left to manage movie halves, advertisements, VLC playback, and removable uploads."}
             </div>
 
             <div className="space-y-3">
@@ -294,6 +308,7 @@ const Index = () => {
         </section>
 
         <TheaterSeats />
+
         <div className="mt-2" style={{ animation: "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both" }}>
           <LightingControls mode={lightMode} onModeChange={setLightMode} />
         </div>
