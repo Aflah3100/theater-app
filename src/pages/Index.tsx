@@ -244,11 +244,11 @@ const Index = () => {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button variant="theater" size="lg" className="gap-2" disabled={!ad || playbackBusy || showLocked} onClick={handlePlayAd}>
                   <Megaphone className="w-5 h-5" />
-                  {playbackStage === "launchingAd" ? "Opening VLC..." : "Project Advertisement"}
+                  {playbackStage === "launchingAd" ? "Opening VLC..." : "Project On - Theater AD"}
                 </Button>
                 <Button variant="gold" size="lg" className="gap-2" disabled={!trailer || playbackBusy || showLocked} onClick={handlePlayTrailer}>
                   <Play className="w-5 h-5" />
-                  {playbackStage === "launchingTrailer" ? "Opening VLC..." : "Play Trailer"}
+                  {playbackStage === "launchingTrailer" ? "Opening VLC..." : "Project Movie Trailer"}
                 </Button>
               </div>
             </div>
