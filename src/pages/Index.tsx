@@ -111,11 +111,11 @@ const Index = () => {
 
   const statusTitle =
     playbackStage === "launchingAd"
-      ? "Playing advertisement in VLC"
+      ? "Playing advertisement on Screen"
       : playbackStage === "launchingFirstHalf"
-        ? "Playing first half in VLC"
+        ? "Playing first half on Screen"
         : playbackStage === "launchingSecondHalf"
-          ? "Playing second half in VLC"
+          ? "Playing second half on Screen"
           : playbackStage === "intermission"
             ? "Movie Intermission"
             : playbackStage === "finished"
@@ -124,18 +124,18 @@ const Index = () => {
 
   const statusDescription =
     playbackStage === "launchingAd"
-      ? "VLC is handling advertisement playback. Return here when the clip finishes."
+      ? "Screen is handling advertisement playback. Return here when the clip finishes."
       : playbackStage === "launchingFirstHalf"
-        ? "The first half is now playing in VLC. When it ends, intermission will appear here."
+        ? "The first half is now projecting. When it ends, Intermission will appear here."
         : playbackStage === "launchingSecondHalf"
-          ? "The second half is now playing in VLC. The app will offer a close action when VLC finishes."
+          ? "The second half is now projecting. The app will offer a close action when it finishes."
           : playbackStage === "intermission"
             ? "Please turn on lights. The second-half playback button is now enabled."
             : playbackStage === "finished"
               ? "The movie has ended. Close the application for the next show."
               : desktopReady
-                ? "Upload media and launch playback in VLC."
-                : "Run this project through Electron to keep playback in VLC.";
+                ? "Upload media and launch playback to project."
+                : "Run this project through Electron to keep playback in the screen.";
 
   return (
     <div className={cn("min-h-screen transition-colors duration-1000 flex flex-col", ambientClass)}>
@@ -154,9 +154,9 @@ const Index = () => {
       <header className="text-center pt-6 pb-4 px-4 relative z-10" style={{ animation: "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards" }}>
         <div className="flex items-center justify-center gap-3 mb-1">
           <Clapperboard className="w-6 h-6 text-gold" />
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground tracking-tight">Cinema Hall</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground tracking-tight">Awal Cineco Player</h1>
         </div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Electron + VLC screening desk</p>
+        <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Screen-1 4K | RGB Laser Dolby ATMOS</p>
       </header>
 
       <main className="flex-1 flex flex-col items-center px-4 pb-8 relative z-10 max-w-6xl mx-auto w-full gap-8">
@@ -166,8 +166,8 @@ const Index = () => {
               <div className="flex items-start gap-3">
                 <Film className="w-5 h-5 text-gold mt-0.5" />
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">Movie upload</h2>
-                  <p className="text-sm text-muted-foreground">Upload the first and second half separately. The second half stays locked until intermission.</p>
+                  <h2 className="text-lg font-semibold text-foreground">DCP Injector</h2>
+                  <p className="text-sm text-muted-foreground">Load the first and second half DCP. The second half stays locked until intermission.</p>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -176,26 +176,26 @@ const Index = () => {
                   onFileSelect={setFirstHalf}
                   onClear={() => clearMedia(firstHalf, setFirstHalf, "first half")}
                   disabled={showLocked}
-                  title="Upload first half"
-                  description="Select the opening part of the feature film."
+                  title="Load first half"
+                  description="Select the first part of the feature film."
                 />
                 <MovieUploader
                   file={secondHalf}
                   onFileSelect={setSecondHalf}
                   onClear={() => clearMedia(secondHalf, setSecondHalf, "second half")}
                   disabled={showLocked}
-                  title="Upload second half"
+                  title="Load second half"
                   description="Select the second part to be played after intermission."
                 />
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button variant="gold" size="lg" className="gap-2" disabled={!firstHalf || playbackBusy || showLocked} onClick={handlePlayFirstHalf}>
                   <Play className="w-5 h-5" />
-                  {playbackStage === "launchingFirstHalf" ? "Opening VLC..." : "Play First Half in VLC"}
+                  {playbackStage === "launchingFirstHalf" ? "Opening VLC..." : "Project First Half DCP"}
                 </Button>
                 <Button variant="theater" size="lg" className="gap-2" disabled={!secondHalf || !secondHalfEnabled || playbackBusy || showLocked} onClick={handlePlaySecondHalf}>
                   <Play className="w-5 h-5" />
-                  {playbackStage === "launchingSecondHalf" ? "Opening VLC..." : "Play Second Half in VLC"}
+                  {playbackStage === "launchingSecondHalf" ? "Opening VLC..." : "Project Second Half DCP"}
                 </Button>
               </div>
             </div>
@@ -204,8 +204,8 @@ const Index = () => {
               <div className="flex items-start gap-3">
                 <Megaphone className="w-5 h-5 text-gold mt-0.5" />
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">Advertisement upload</h2>
-                  <p className="text-sm text-muted-foreground">Upload a pre-show clip separately and launch it in VLC whenever the auditorium is ready.</p>
+                  <h2 className="text-lg font-semibold text-foreground">Advertisement Injector</h2>
+                  <p className="text-sm text-muted-foreground">Upload a pre-show clip separately to project it in the screen. </p>
                 </div>
               </div>
               <MovieUploader
@@ -213,13 +213,13 @@ const Index = () => {
                 onFileSelect={setAd}
                 onClear={() => clearMedia(ad, setAd, "advertisement")}
                 disabled={showLocked}
-                title="Upload advertisement"
+                title="Load advertisement"
                 description="Choose the ad reel or sponsor clip."
                 emptyIcon="megaphone"
               />
               <Button variant="theater" size="lg" className="gap-2" disabled={!ad || playbackBusy || showLocked} onClick={handlePlayAd}>
                 <Megaphone className="w-5 h-5" />
-                {playbackStage === "launchingAd" ? "Opening VLC..." : "Play Advertisement in VLC"}
+                {playbackStage === "launchingAd" ? "Opening VLC..." : "Project Advertisement"}
               </Button>
             </div>
           </div>
@@ -227,8 +227,8 @@ const Index = () => {
           <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-sm p-5 shadow-xl shadow-black/20 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Theater screen</h2>
-                <p className="text-sm text-muted-foreground">{desktopReady ? "Electron bridge is active and VLC remains the playback engine." : "Electron bridge is not active."}</p>
+                <h2 className="text-lg font-semibold text-foreground">Theater Screen View</h2>
+                <p className="text-sm text-muted-foreground">{desktopReady ? "Projection System Ready to Play" : "Electron bridge is not active."}</p>
               </div>
               <MonitorSpeaker className="w-5 h-5 text-gold mt-0.5" />
             </div>
@@ -264,7 +264,7 @@ const Index = () => {
                 ? "Intermission is active. House lights should be on before the second half resumes in VLC."
                 : playbackStage === "finished"
                   ? "Second half complete. All controls are locked until the application is closed."
-                  : "Use the screen, seating preview, and lighting controls here without needing to scroll further down."}
+                  : "Use the screen, seating preview, and lighting controls here."}
             </div>
 
             <div className="rounded-2xl border border-border/50 bg-background/50 p-4">
