@@ -1,5 +1,5 @@
-import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
-import { Captions, Clapperboard, Film, Languages, Megaphone, MonitorSpeaker, Play, Power, Video } from "lucide-react";
+import { type Dispatch, type SetStateAction, useState } from "react";
+import { Clapperboard, Film, Megaphone, MonitorSpeaker, Play, Power } from "lucide-react";
 import MovieUploader from "@/components/MovieUploader";
 import LightingControls, { type LightMode } from "@/components/LightingControls";
 import TheaterSeats from "@/components/TheaterSeats";
@@ -27,27 +27,7 @@ const Index = () => {
   const desktopReady = Boolean(window.desktop?.isElectron);
   const playbackBusy = playbackStage === "launchingAd" || playbackStage === "launchingFirstHalf" || playbackStage === "launchingSecondHalf";
   const secondHalfEnabled = playbackStage === "intermission";
-
-  const featureHighlights = useMemo(
-    () => [
-      {
-        icon: Languages,
-        title: "VLC remains the player",
-        description: "Movie halves and advertisements still launch in VLC so the desktop workflow stays unchanged.",
-      },
-      {
-        icon: Captions,
-        title: "Intermission control",
-        description: "Once the first half finishes in VLC, the UI unlocks the second half and prompts staff to turn on the lights.",
-      },
-      {
-        icon: Video,
-        title: "End-of-show close",
-        description: "After VLC finishes the second half, the screen switches to a close-app prompt for the operator.",
-      },
-    ],
-    [],
-  );
+  const showLocked = playbackStage === "finished";
 
   const playInVlc = async (media: SelectedMedia | null, stage: PlaybackStage, title: string) => {
     if (!media?.path) {
@@ -107,6 +87,8 @@ const Index = () => {
     setter: Dispatch<SetStateAction<SelectedMedia | null>>,
     label: string,
   ) => {
+    if (showLocked) return;
+
     setter(null);
 
     if (!playbackBusy) {
@@ -193,6 +175,7 @@ const Index = () => {
                   file={firstHalf}
                   onFileSelect={setFirstHalf}
                   onClear={() => clearMedia(firstHalf, setFirstHalf, "first half")}
+                  disabled={showLocked}
                   title="Upload first half"
                   description="Select the opening part of the feature film."
                 />
@@ -200,16 +183,17 @@ const Index = () => {
                   file={secondHalf}
                   onFileSelect={setSecondHalf}
                   onClear={() => clearMedia(secondHalf, setSecondHalf, "second half")}
+                  disabled={showLocked}
                   title="Upload second half"
                   description="Select the second part to be played after intermission."
                 />
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="gold" size="lg" className="gap-2" disabled={!firstHalf || playbackBusy} onClick={handlePlayFirstHalf}>
+                <Button variant="gold" size="lg" className="gap-2" disabled={!firstHalf || playbackBusy || showLocked} onClick={handlePlayFirstHalf}>
                   <Play className="w-5 h-5" />
                   {playbackStage === "launchingFirstHalf" ? "Opening VLC..." : "Play First Half in VLC"}
                 </Button>
-                <Button variant="theater" size="lg" className="gap-2" disabled={!secondHalf || !secondHalfEnabled || playbackBusy} onClick={handlePlaySecondHalf}>
+                <Button variant="theater" size="lg" className="gap-2" disabled={!secondHalf || !secondHalfEnabled || playbackBusy || showLocked} onClick={handlePlaySecondHalf}>
                   <Play className="w-5 h-5" />
                   {playbackStage === "launchingSecondHalf" ? "Opening VLC..." : "Play Second Half in VLC"}
                 </Button>
@@ -228,11 +212,12 @@ const Index = () => {
                 file={ad}
                 onFileSelect={setAd}
                 onClear={() => clearMedia(ad, setAd, "advertisement")}
+                disabled={showLocked}
                 title="Upload advertisement"
                 description="Choose the ad reel or sponsor clip."
                 emptyIcon="megaphone"
               />
-              <Button variant="theater" size="lg" className="gap-2" disabled={!ad || playbackBusy} onClick={handlePlayAd}>
+              <Button variant="theater" size="lg" className="gap-2" disabled={!ad || playbackBusy || showLocked} onClick={handlePlayAd}>
                 <Megaphone className="w-5 h-5" />
                 {playbackStage === "launchingAd" ? "Opening VLC..." : "Play Advertisement in VLC"}
               </Button>
@@ -253,7 +238,7 @@ const Index = () => {
                 <div className="px-6 text-center space-y-4">
                   <h3 className="text-3xl font-semibold text-gold">Movie Intermission</h3>
                   <p className="text-lg text-foreground">Please turn on lights.</p>
-                  <Button variant="gold" size="lg" onClick={handlePlaySecondHalf} disabled={!secondHalfEnabled || !secondHalf || playbackBusy}>
+                  <Button variant="gold" size="lg" onClick={handlePlaySecondHalf} disabled={!secondHalfEnabled || !secondHalf || playbackBusy || showLocked}>
                     Play Second Half
                   </Button>
                 </div>
@@ -278,31 +263,19 @@ const Index = () => {
               {playbackStage === "intermission"
                 ? "Intermission is active. House lights should be on before the second half resumes in VLC."
                 : playbackStage === "finished"
-                  ? "Second half complete. Use the close action above to shut the screen down."
-                  : "Use the controls on the left to manage movie halves, advertisements, VLC playback, and removable uploads."}
+                  ? "Second half complete. All controls are locked until the application is closed."
+                  : "Use the screen, seating preview, and lighting controls here without needing to scroll further down."}
             </div>
 
-            <div className="space-y-3">
-              {featureHighlights.map(({ icon: Icon, title, description }) => (
-                <div key={title} className="rounded-xl border border-border/50 bg-background/50 p-4">
-                  <div className="flex items-start gap-3">
-                    <Icon className="w-4 h-4 mt-0.5 text-gold" />
-                    <div>
-                      <h3 className="text-sm font-medium text-foreground">{title}</h3>
-                      <p className="text-sm text-muted-foreground">{description}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="rounded-2xl border border-border/50 bg-background/50 p-4">
+              <TheaterSeats />
+            </div>
+
+            <div className="rounded-2xl border border-border/50 bg-background/50 p-4">
+              <LightingControls mode={lightMode} onModeChange={setLightMode} />
             </div>
           </div>
         </section>
-
-        <TheaterSeats />
-
-        <div className="mt-2" style={{ animation: "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both" }}>
-          <LightingControls mode={lightMode} onModeChange={setLightMode} />
-        </div>
       </main>
 
       <div className="h-8 bg-gradient-to-t from-black/30 to-transparent" />
