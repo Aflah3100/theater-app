@@ -8,13 +8,15 @@ import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import type { SelectedMedia } from "@/types/media";
 
-type PlaybackStage = "idle" | "launchingAd" | "launchingFirstHalf" | "intermission" | "launchingSecondHalf" | "finished";
+type PlaybackStage = "idle" | "launchingAd" | "launchingTrailer" | "launchingFirstHalf" | "intermission" | "launchingSecondHalf" | "finished";
 
 const Index = () => {
   const [firstHalf, setFirstHalf] = useState<SelectedMedia | null>(null);
   const [secondHalf, setSecondHalf] = useState<SelectedMedia | null>(null);
   const [ad, setAd] = useState<SelectedMedia | null>(null);
+  const [trailer, setTrailer] = useState<SelectedMedia | null>(null);
   const [lightMode, setLightMode] = useState<LightMode>("on");
+  const [exitLightsOn, setExitLightsOn] = useState(false);
   const [playbackStage, setPlaybackStage] = useState<PlaybackStage>("idle");
 
   const ambientClass =
@@ -25,7 +27,7 @@ const Index = () => {
         : "theater-ambient-off";
 
   const desktopReady = Boolean(window.desktop?.isElectron);
-  const playbackBusy = playbackStage === "launchingAd" || playbackStage === "launchingFirstHalf" || playbackStage === "launchingSecondHalf";
+  const playbackBusy = playbackStage === "launchingAd" || playbackStage === "launchingFirstHalf" || playbackStage === "launchingSecondHalf" || playbackStage === "launchingTrailer";
   const secondHalfEnabled = playbackStage === "intermission";
   const showLocked = playbackStage === "finished";
 
@@ -59,6 +61,14 @@ const Index = () => {
 
     setPlaybackStage("idle");
     toast.success("Advertisement playback finished in VLC.");
+  };
+
+  const handlePlayTrailer = async () => {
+    const ok = await playInVlc(trailer, "launchingTrailer", "trailer");
+    if (!ok) return;
+
+    setPlaybackStage("idle");
+    toast.success("Trailer playback finished in VLC.");
   };
 
   const handlePlayFirstHalf = async () => {
@@ -112,6 +122,8 @@ const Index = () => {
   const statusTitle =
     playbackStage === "launchingAd"
       ? "Playing advertisement on Screen"
+      : playbackStage === "launchingTrailer"
+        ? "Playing trailer on Screen"
       : playbackStage === "launchingFirstHalf"
         ? "Playing first half on Screen"
         : playbackStage === "launchingSecondHalf"
@@ -125,6 +137,8 @@ const Index = () => {
   const statusDescription =
     playbackStage === "launchingAd"
       ? "Screen is handling advertisement playback. Return here when the clip finishes."
+      : playbackStage === "launchingTrailer"
+        ? "Screen is handling trailer playback. Return here when the trailer finishes."
       : playbackStage === "launchingFirstHalf"
         ? "The first half is now projecting. When it ends, Intermission will appear here."
         : playbackStage === "launchingSecondHalf"
@@ -205,22 +219,38 @@ const Index = () => {
                 <Megaphone className="w-5 h-5 text-gold mt-0.5" />
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Advertisement Injector</h2>
-                  <p className="text-sm text-muted-foreground">Upload a pre-show clip separately to project it in the screen. </p>
+                  <p className="text-sm text-muted-foreground">Upload advertisement and trailer clips separately without affecting DCP playback.</p>
                 </div>
               </div>
-              <MovieUploader
-                file={ad}
-                onFileSelect={setAd}
-                onClear={() => clearMedia(ad, setAd, "advertisement")}
-                disabled={showLocked}
-                title="Load advertisement"
-                description="Choose the ad reel or sponsor clip."
-                emptyIcon="megaphone"
-              />
-              <Button variant="theater" size="lg" className="gap-2" disabled={!ad || playbackBusy || showLocked} onClick={handlePlayAd}>
-                <Megaphone className="w-5 h-5" />
-                {playbackStage === "launchingAd" ? "Opening VLC..." : "Project Advertisement"}
-              </Button>
+              <div className="grid gap-4 md:grid-cols-2">
+                <MovieUploader
+                  file={ad}
+                  onFileSelect={setAd}
+                  onClear={() => clearMedia(ad, setAd, "advertisement")}
+                  disabled={showLocked}
+                  title="Load advertisement"
+                  description="Choose the ad reel or sponsor clip."
+                  emptyIcon="megaphone"
+                />
+                <MovieUploader
+                  file={trailer}
+                  onFileSelect={setTrailer}
+                  onClear={() => clearMedia(trailer, setTrailer, "trailer")}
+                  disabled={showLocked}
+                  title="Load trailer"
+                  description="Choose the trailer to be played separately."
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button variant="theater" size="lg" className="gap-2" disabled={!ad || playbackBusy || showLocked} onClick={handlePlayAd}>
+                  <Megaphone className="w-5 h-5" />
+                  {playbackStage === "launchingAd" ? "Opening VLC..." : "Project Advertisement"}
+                </Button>
+                <Button variant="gold" size="lg" className="gap-2" disabled={!trailer || playbackBusy || showLocked} onClick={handlePlayTrailer}>
+                  <Play className="w-5 h-5" />
+                  {playbackStage === "launchingTrailer" ? "Opening VLC..." : "Play Trailer"}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -268,11 +298,16 @@ const Index = () => {
             </div>
 
             <div className="rounded-2xl border border-border/50 bg-background/50 p-4">
-              <TheaterSeats />
+              <TheaterSeats exitLightsOn={exitLightsOn} />
             </div>
 
             <div className="rounded-2xl border border-border/50 bg-background/50 p-4">
-              <LightingControls mode={lightMode} onModeChange={setLightMode} />
+              <LightingControls
+                mode={lightMode}
+                onModeChange={setLightMode}
+                exitLightsOn={exitLightsOn}
+                onExitLightsChange={setExitLightsOn}
+              />
             </div>
           </div>
         </section>
