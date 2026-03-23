@@ -1,11 +1,11 @@
 import { useRef } from "react";
-import { Film, Check, Megaphone, FolderOpen } from "lucide-react";
+import { Film, Check, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SelectedMedia } from "@/types/media";
 
 interface MovieUploaderProps {
-  file: SelectedMedia | null;
-  onFileSelect: (file: SelectedMedia) => void;
+  file: File | null;
+  onFileSelect: (file: File) => void;
   title?: string;
   description?: string;
   emptyIcon?: "film" | "megaphone";
@@ -15,7 +15,7 @@ const MovieUploader = ({
   file,
   onFileSelect,
   title = "Load Film Reel",
-  description = "Choose a movie file from your desktop library.",
+  description = "Click to upload • MKV, MP4, AVI, etc.",
   emptyIcon = "film",
 }: MovieUploaderProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +52,7 @@ const MovieUploader = ({
       )}
       onClick={handlePick}
     >
-      <input ref={inputRef} type="file" accept="video/*,.mkv" className="hidden" onChange={handleFileInput} />
+      <input ref={inputRef} type="file" accept="video/*,.mkv" className="hidden" onChange={handleChange} />
       <div className="flex flex-col items-center gap-3">
         {file ? (
           <>
@@ -74,10 +74,6 @@ const MovieUploader = ({
             <div>
               <p className="text-sm font-medium text-foreground">{title}</p>
               <p className="text-xs text-muted-foreground mt-1">{description}</p>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-background/80 px-3 py-1 text-xs text-muted-foreground border border-border/60">
-              <FolderOpen className="w-3.5 h-3.5" />
-              Choose file
             </div>
           </>
         )}

@@ -1,16 +1,18 @@
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import TheaterSeats from "@/components/TheaterSeats";
 import LightingControls, { type LightMode } from "@/components/LightingControls";
 import MovieUploader from "@/components/MovieUploader";
 import { cn } from "@/lib/utils";
-import { Clapperboard, Megaphone, Play, MonitorSpeaker, Video, Languages, Captions } from "lucide-react";
-import { toast } from "@/components/ui/sonner";
-import type { SelectedMedia } from "@/types/media";
+import { Play, SkipForward, RotateCcw, Clapperboard, Megaphone } from "lucide-react";
+
+type ShowState = "lobby" | "playing-first" | "intermission" | "playing-second" | "playing-ad" | "ended";
 
 const Index = () => {
-  const [movie, setMovie] = useState<SelectedMedia | null>(null);
-  const [ad, setAd] = useState<SelectedMedia | null>(null);
+  const [movie, setMovie] = useState<File | null>(null);
+  const [ad, setAd] = useState<File | null>(null);
+  const [intermissionTime, setIntermissionTime] = useState("");
+  const [showState, setShowState] = useState<ShowState>("lobby");
   const [lightMode, setLightMode] = useState<LightMode>("on");
   const [launching, setLaunching] = useState<"movie" | "ad" | null>(null);
 
@@ -44,29 +46,73 @@ const Index = () => {
     [],
   );
 
-  const openInVlc = async (media: SelectedMedia | null, kind: "movie" | "ad") => {
-    if (!media) {
-      toast.error(`Select a ${kind} file first.`);
-      return;
-    }
+  const movieUrl = useMemo(() => (movie ? URL.createObjectURL(movie) : null), [movie]);
+  const adUrl = useMemo(() => (ad ? URL.createObjectURL(ad) : null), [ad]);
 
     if (!desktopReady || !media.path) {
       toast.error("Desktop VLC launching is only available from the Electron app.");
       return;
     }
 
-    setLaunching(kind);
-    const result = await window.desktop.playInVlc({ path: media.path });
-    setLaunching(null);
+  const curtainsOpen =
+    showState === "playing-first" || showState === "playing-second" || showState === "playing-ad";
+  const activeVideoUrl = showState === "playing-ad" ? adUrl : movieUrl;
 
-    if (!result.ok) {
-      toast.error(result.error);
+  const startPlayback = (nextState: ShowState) => {
+    setShowState(nextState);
+    setLightMode("off");
+    setTimeout(() => setIsPlaying(true), 1600);
+  };
+
+  const handleStartShow = () => {
+    if (!movie) return;
+    setResumeFrom(0);
+    if (intermissionSeconds && intermissionSeconds > 0) {
+      startPlayback("playing-first");
+    } else {
+      startPlayback("playing-second");
+    }
+  };
+
+  const handlePlayAd = () => {
+    if (!ad) return;
+    setResumeFrom(0);
+    startPlayback("playing-ad");
+  };
+
+  const handleIntermissionTrigger = () => {
+    setIsPlaying(false);
+    setLightMode("dim");
+    setTimeout(() => setShowState("intermission"), 500);
+  };
+
+  const handleStartSecondHalf = () => {
+    startPlayback("playing-second");
+  };
+
+  const handleVideoEnd = () => {
+    setIsPlaying(false);
+    setLightMode("on");
+    if (showState === "playing-ad") {
+      setShowState("lobby");
       return;
     }
-
-    toast.success(`${kind === "movie" ? "Movie" : "Ad"} opened in VLC.`);
-    setLightMode("off");
+    setShowState("ended");
   };
+
+  const handleReset = () => {
+    setShowState("lobby");
+    setLightMode("on");
+    setIsPlaying(false);
+    setResumeFrom(0);
+  };
+
+  const ambientClass =
+    lightMode === "on"
+      ? "theater-ambient-on"
+      : lightMode === "dim"
+        ? "theater-ambient-dim"
+        : "theater-ambient-off";
 
   return (
     <div className={cn("min-h-screen transition-colors duration-1000 flex flex-col", ambientClass)}>
@@ -113,79 +159,113 @@ const Index = () => {
       >
         <div className="flex items-center justify-center gap-3 mb-1">
           <Clapperboard className="w-6 h-6 text-gold" />
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground tracking-tight">Cinema Hall</h1>
+          <h1
+            className="text-2xl sm:text-3xl font-display font-bold text-foreground tracking-tight"
+            style={{ lineHeight: "1.1" }}
+          >
+            Cinema Hall
+          </h1>
         </div>
-        <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Electron + VLC screening desk</p>
+        <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Private Screening Room</p>
       </header>
 
-      <main className="flex-1 flex flex-col items-center px-4 pb-8 relative z-10 max-w-5xl mx-auto w-full gap-8">
-        <section className="w-full grid gap-6 lg:grid-cols-[1.1fr_0.9fr] items-start">
-          <div className="space-y-6">
-            <MovieUploader file={movie} onFileSelect={setMovie} title="Load Feature Film" />
+      <main className="flex-1 flex flex-col items-center px-4 pb-8 relative z-10 max-w-5xl mx-auto w-full">
+        {showState === "lobby" && (
+          <div
+            className="w-full space-y-6 max-w-md mx-auto"
+            style={{ animation: "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both" }}
+          >
+            <MovieUploader file={movie} onFileSelect={setMovie} />
             <MovieUploader
               file={ad}
               onFileSelect={setAd}
               title="Load Advertisement"
-              description="Choose a pre-show ad clip and launch it in VLC."
+              description="Click to upload • Play a pre-show ad clip"
               emptyIcon="megaphone"
             />
 
-            <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-sm p-5 space-y-4 shadow-xl shadow-black/20">
-              <div className="flex items-start gap-3">
-                <MonitorSpeaker className="w-5 h-5 text-gold mt-0.5" />
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Launch in VLC</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Files open in the system VLC player so you can access audio tracks, subtitle menus, playback speed,
-                    aspect ratio, filters, and the rest of VLC's native controls.
-                  </p>
+            {(movie || ad) && (
+              <div
+                className="space-y-6"
+                style={{ animation: "fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards" }}
+              >
+                {movie && <IntermissionTimer value={intermissionTime} onChange={setIntermissionTime} />}
+
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
+                  {ad && (
+                    <Button variant="theater" size="lg" onClick={handlePlayAd} className="gap-2">
+                      <Megaphone className="w-5 h-5" />
+                      Play Ad
+                    </Button>
+                  )}
+                  {movie && (
+                    <Button
+                      variant="gold"
+                      size="lg"
+                      onClick={handleStartShow}
+                      className="gap-2 animate-pulse-glow"
+                    >
+                      <Play className="w-5 h-5" />
+                      Begin Screening
+                    </Button>
+                  )}
                 </div>
               </div>
+            )}
+          </div>
+        )}
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="theater" size="lg" className="gap-2" disabled={!ad || launching !== null} onClick={() => openInVlc(ad, "ad")}>
-                  <Megaphone className="w-5 h-5" />
-                  {launching === "ad" ? "Opening Ad..." : "Play Ad in VLC"}
-                </Button>
-                <Button variant="gold" size="lg" className="gap-2" disabled={!movie || launching !== null} onClick={() => openInVlc(movie, "movie")}>
-                  <Play className="w-5 h-5" />
-                  {launching === "movie" ? "Opening Movie..." : "Play Movie in VLC"}
-                </Button>
-              </div>
-
-              <div className="rounded-xl bg-background/60 border border-border/50 px-4 py-3 text-sm text-muted-foreground">
-                {desktopReady
-                  ? "Desktop bridge is active. If VLC is installed, the selected file will open in fullscreen mode."
-                  : "Desktop bridge is not active. Run this project through Electron to launch VLC from the theater UI."}
-              </div>
+        {showState === "intermission" && (
+          <div
+            className="w-full flex flex-col items-center justify-center py-16 space-y-8"
+            style={{ animation: "fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards" }}
+          >
+            <div className="text-center space-y-3">
+              <h2 className="text-4xl sm:text-5xl font-display font-bold text-gold" style={{ lineHeight: "1.05" }}>
+                Intermission
+              </h2>
+              <p className="text-muted-foreground text-sm">The show will resume shortly. Grab your popcorn! 🍿</p>
             </div>
           </div>
+        )}
 
-          <div className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur-sm p-5 shadow-xl shadow-black/20 space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Why use VLC here?</h2>
-            <p className="text-sm text-muted-foreground">
-              VLC is handling the actual media playback, which makes this desktop version a better fit for complex local
-              media libraries than an in-browser video tag.
-            </p>
-            <div className="space-y-3">
-              {featureHighlights.map(({ icon: Icon, title, description }) => (
-                <div key={title} className="rounded-xl border border-border/50 bg-background/50 p-4">
-                  <div className="flex items-start gap-3">
-                    <Icon className="w-4 h-4 mt-0.5 text-gold" />
-                    <div>
-                      <h3 className="text-sm font-medium text-foreground">{title}</h3>
-                      <p className="text-sm text-muted-foreground">{description}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        {showState === "ended" && (
+          <div
+            className="w-full flex flex-col items-center justify-center py-16 space-y-8"
+            style={{ animation: "fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards" }}
+          >
+            <div className="text-center space-y-3">
+              <h2 className="text-4xl sm:text-5xl font-display font-bold text-gold" style={{ lineHeight: "1.05" }}>
+                The End
+              </h2>
+              <p className="text-muted-foreground text-sm">Thank you for watching! We hope you enjoyed the show.</p>
             </div>
+            <Button variant="theater" size="lg" onClick={handleReset} className="gap-2">
+              <RotateCcw className="w-4 h-4" />
+              New Screening
+            </Button>
+          </div>
+        )}
+
+        {(showState === "playing-first" || showState === "playing-second" || showState === "playing-ad") && (
+          <div className="w-full" style={{ animation: "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards" }}>
+            <TheaterScreen
+              videoUrl={activeVideoUrl}
+              isPlaying={isPlaying}
+              onPlayPause={() => setIsPlaying(!isPlaying)}
+              onEnded={handleVideoEnd}
+              curtainsOpen={curtainsOpen}
+              intermissionAt={showState === "playing-first" ? intermissionSeconds ?? undefined : undefined}
+              onIntermission={handleIntermissionTrigger}
+              resumeFrom={resumeFrom}
+              onPauseAtIntermission={(time) => setResumeFrom(time)}
+            />
           </div>
         </section>
 
         <TheaterSeats />
 
-        <div className="mt-2" style={{ animation: "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both" }}>
+        <div className="mt-8" style={{ animation: "fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both" }}>
           <LightingControls mode={lightMode} onModeChange={setLightMode} />
         </div>
       </main>
