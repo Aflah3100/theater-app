@@ -31,7 +31,12 @@ const Index = () => {
   const secondHalfEnabled = playbackStage === "intermission";
   const showLocked = playbackStage === "finished";
 
-  const playInVlc = async (media: SelectedMedia | null, stage: PlaybackStage, title: string) => {
+  const playInVlc = async (
+    media: SelectedMedia | null,
+    stage: PlaybackStage,
+    title: string,
+    failureStage: PlaybackStage = "idle",
+  ) => {
     if (!media?.path) {
       toast.error(`Upload the ${title.toLowerCase()} first.`);
       return false;
@@ -47,7 +52,7 @@ const Index = () => {
     const result = await window.desktop.playInVlc({ path: media.path });
 
     if (!result.ok) {
-      setPlaybackStage("idle");
+      setPlaybackStage(failureStage);
       toast.error(result.error);
       return false;
     }
@@ -56,18 +61,20 @@ const Index = () => {
   };
 
   const handlePlayAd = async () => {
-    const ok = await playInVlc(ad, "launchingAd", "advertisement");
+    const previousStage = playbackStage;
+    const ok = await playInVlc(ad, "launchingAd", "advertisement", previousStage);
     if (!ok) return;
 
-    setPlaybackStage("idle");
+    setPlaybackStage(previousStage);
     toast.success("Advertisement playback finished in VLC.");
   };
 
   const handlePlayTrailer = async () => {
-    const ok = await playInVlc(trailer, "launchingTrailer", "trailer");
+    const previousStage = playbackStage;
+    const ok = await playInVlc(trailer, "launchingTrailer", "trailer", previousStage);
     if (!ok) return;
 
-    setPlaybackStage("idle");
+    setPlaybackStage(previousStage);
     toast.success("Trailer playback finished in VLC.");
   };
 
